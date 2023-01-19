@@ -12,7 +12,6 @@ contract Token is ERC20Votes {
         _mint(msg.sender, _initialSupply);
     }
 
-    // The functions below are overrides required by Solidity.
 
     function _afterTokenTransfer(
         address from,

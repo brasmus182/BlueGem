@@ -19,6 +19,9 @@ contract Governance is
     uint256 public votingDelay_;
     uint256 public votingPeriod_;
 
+    mapping(address => bool) public isMember;
+    address public lockUpAddress;
+
     constructor(
         ERC20Votes _token,
         TimelockController _timelock,
@@ -43,6 +46,20 @@ contract Governance is
         return votingPeriod_;
     }
 
+    function inductMember(address newMemberAddress) public internal {
+        isMember[newMemberAddress] = true;
+    }
+
+    function becomeMember(addreess newMemberAddress) public {
+        require(_token.balanceOf(address) != 0, 'You Dont own any token, you need to buy some!');
+        require(_token.isStaked(address) == true, 'Not staked, need to own token AND stake it');
+        isMember[newMemberAddress] = true;
+    }
+
+    function kickMembber(address memberAddress) public internal {
+        isMember[memberAddress] = false;
+    }
+
     // The following functions are overrides required by Solidity.
 
     function quorum(uint256 blockNumber)
@@ -60,6 +77,7 @@ contract Governance is
         override(IGovernor, GovernorVotes)
         returns (uint256)
     {
+        require(isMember[address] == true, 'Not a member, You Can Not Vote!');
         return super.getVotes(account, blockNumber);
     }
 
