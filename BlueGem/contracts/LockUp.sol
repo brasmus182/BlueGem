@@ -7,11 +7,16 @@ import "./Token.sol";
 contract Exchange {
 	address public feeAccount;
 	uint256 public feePercent;
+	address public blueGemAddress;
 	mapping(address => mapping(address => uint256)) public tokens;
-	mapping(uint256 => _Order) public orders;
-	uint256 public orderCount;
-	mapping(uint256 => bool) public orderCancelled;
-	mapping(uint256 => bool) public orderFilled;
+
+	mapping(address => bool) public hasBalance;
+	mapping(address => bool) public isLockedUp;
+	mapping(address => uint256) public lockUpEnd;
+	
+	event tokenLockUp(
+
+		)
 
 	event Deposit(
 		address token,
@@ -25,49 +30,7 @@ contract Exchange {
 		address user,
 		uint256 amount,
 		uint256 balance
-	);
-
-	event Order(
-		uint256 id, //unique ID for order
-		address user, //User who made order
-		address tokenGet, //address of token desired to get
-		uint256 amountGet,
-		address tokenGive, //address of token desired to sell
-		uint256 amountGive,
-		uint256 timeStamp
-	);
-
-	event CancelOrder(
-		uint256 id,
-		address user, //User who made order
-		address tokenGet, //address of token desired to get
-		uint256 amountGet,
-		address tokenGive, //address of token desired to sell
-		uint256 amountGive,
-		uint256 timeStamp
-	);
-
-	event Trade(
-		uint256 id,
-		address user,
-		address tokenGet,
-		uint256 amountGet,
-		address tokenGive,
-		uint256 amountGive,
-		address creator,
-		uint256 timestamp
-	);
-
-	struct _Order {
-		uint256 id; //unique ID for order
-		address user; //User who made order
-		address tokenGet; //address of token desired to get
-		uint256 amountGet;
-		address tokenGive; //address of token desired to sell
-		uint256 amountGive;
-		uint256 timeStamp;
-	}
-
+	);	
 
 	constructor(address _feeAccount, uint256 _feePercent){
 		feeAccount = _feeAccount;
@@ -77,6 +40,8 @@ contract Exchange {
 	function depositToken(address _token, uint256 _amount) public {
 		//Transfer Tokens to exchange
 		require(Token(_token).transferFrom(msg.sender, address(this), _amount));
+		//Make Sure it's BlueGem Token Deposited
+		require(_token.address() == blueGemAddress, "Can't deposit tokens that aren't BlueGem")
 		//Update Balance
 		tokens[_token][msg.sender] = tokens[_token][msg.sender] + _amount;
 		//Emit Event
@@ -85,6 +50,7 @@ contract Exchange {
 
 	function withdrawTokens(address _token, uint256 _amount) public {
 		require(_amount <= tokens[_token][msg.sender], "not enough tokens");
+		require(isLockedUp[msg.sender] == false, "Your tokens are locked up, you can't withdraw right now");
 
 		tokens[_token][msg.sender] = tokens[_token][msg.sender] - _amount;
 
@@ -92,7 +58,6 @@ contract Exchange {
 
 		//emit
 		emit Withdraw(_token, msg.sender, _amount, tokens[_token][msg.sender]);
-
 	}
 
 	function balanceOf(address _token, address _user)
@@ -103,127 +68,24 @@ contract Exchange {
 			return tokens[_token][_user];
 		}
 
-	//make orders
-	//Give is token wanted to spend
-	//Get is token desired to receive
-	function makeOrder(
-		address _tokenGet,
-		uint256 _amountGet,
-		address _tokenGive,
-		uint256 _amountGive
-		) public {
-	// Prevent orders if tokens aren't on exchange
-        require(balanceOf(_tokenGive, msg.sender) >= _amountGive);	
-
-	//Order # iteration
-		orderCount ++;
-		//Order storage 
-		orders[orderCount] = _Order(
-	            orderCount,
-	            msg.sender,
-	            _tokenGet,
-	            _amountGet,
-	            _tokenGive,
-	            _amountGive,
-	            block.timestamp
-	        );
-
-		emit Order(
-			orderCount,
-			msg.sender,
-			_tokenGet,
-			_amountGet,
-			_tokenGive,
-			_amountGive,
-			block.timestamp
-		);
+	//Function to set the BlueGem Address in case you need to change it, available only to the owner to set
+	function setBlueGemAddress(address bgAddress) public onlyOwner {
+		blueGemAddress = bgAddress;
 	}
 
-	function cancelOrder(
-		uint256 _id
-		) public {
-		//Fetch Order
-		_Order storage _order = orders[_id];
-		//Cancel Order
-		require(orderCancelled[_id] != true);
-		require(_order.user == msg.sender);
-		require(_order.id == _id);
-		orderCancelled[_id] = true;
-
-		emit CancelOrder(
-			_id,
-		 	msg.sender,
-		 	orders[_id].tokenGet,
-		 	orders[_id].amountGet,
-		 	orders[_id].tokenGive,
-		 	orders[_id].amountGive,
-		 	orders[_id].timeStamp	
-		 	);
+	function startLockUpPeriod(address locker, uint256 lockUpPeriod) public external {
+		require(msg.sender == locker, "You can't spend or lockup someone else's tokens")
+		//lockup peroid is in weeks
+		uint256 lockUpWeeks = lockUpPeriod * 604800;
+		uint256 now = block.timestamp;
+		isLockedUp[locker] = true;
+		lockUpEnd[locker] = now + lockUpWeeks;
 	}
 
-	function fillOrder(
-		uint256 _id
-		) public {
-		require(_id > 0 && _id <= orderCount, "Order does not exist");
-        // 2. Order can't be filled
-        require(!orderFilled[_id]);
-        // 3. Order can't be cancelled
-        require(!orderCancelled[_id]);
-		//Fetch Order
-		_Order storage _order = orders[_id];	
-		//Execute Trade
-		_trade(
-			_order.id,
-			_order.user,
-			_order.tokenGet,
-			_order.amountGet,
-			_order.tokenGive,
-			_order.amountGive
-		);
-		orderFilled[_order.id] = true;
-
+	function endLockUpPeriod(address unlocker) public external {
+		require(lockUpEnd[unlocker] <= block.timestamp, "Your lockup period is not over yet");
+		isLockedUp[unlocker] = false;
+		lockUpEnd[unlocker] = 0;
 	}
 
-	function _trade(
-		uint256 _orderId,
-		address _user,
-		address _tokenGet,
-		uint256 _amountGet,
-		address _tokenGive,
-		uint256 _amountGive
-		) public {
-
-		uint256 _feeAmount = (_amountGet * feePercent) / 100;
-
-		//Trade here
-		//Handle get portion
-		tokens[_tokenGet][msg.sender] = 
-			tokens[_tokenGet][msg.sender] - 
-			(_amountGet + _feeAmount);
-
-		tokens[_tokenGet][_user] = tokens[_tokenGet][_user] + _amountGet;
-
-		//Handle exchange fees
-		tokens[_tokenGet][feeAccount] = 
-			tokens[_tokenGet][feeAccount] + 
-			_feeAmount;
-
-		//Hanlde give portion
-		tokens[_tokenGive][_user] = tokens[_tokenGive][_user] - _amountGive;
-
-		tokens[_tokenGive][msg.sender] = 
-			tokens[_tokenGive][msg.sender] + 
-			_amountGive;
-		
-		emit Trade(
-			_orderId,
-			msg.sender,
-			_tokenGet,
-			_amountGet,
-			_tokenGive,
-			_amountGive,
-			_user,
-			block.timestamp
-		);
-	} 
 }
