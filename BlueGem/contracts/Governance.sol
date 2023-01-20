@@ -50,13 +50,13 @@ contract Governance is
         isMember[newMemberAddress] = true;
     }
 
-    function becomeMember(addreess newMemberAddress) public {
+    function becomeMember(addreess newMemberAddress) public external {
         require(_token.balanceOf(address) != 0, 'You Dont own any token, you need to buy some!');
         require(_token.isStaked(address) == true, 'Not staked, need to own token AND stake it');
         isMember[newMemberAddress] = true;
     }
 
-    function kickMembber(address memberAddress) public internal {
+    function kickMembber(address memberAddress) public onlyOwner {
         isMember[memberAddress] = false;
     }
 
