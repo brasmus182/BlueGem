@@ -41,7 +41,7 @@ contract Exchange {
 		//Transfer Tokens to exchange
 		require(Token(_token).transferFrom(msg.sender, address(this), _amount));
 		//Make Sure it's BlueGem Token Deposited
-		require(_token.address() == blueGemAddress, "Can't deposit tokens that aren't BlueGem")
+		require(_token == blueGemAddress, "Can't deposit tokens that aren't BlueGem")
 		//Update Balance
 		tokens[_token][msg.sender] = tokens[_token][msg.sender] + _amount;
 		//Emit Event
