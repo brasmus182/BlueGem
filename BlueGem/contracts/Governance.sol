@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol
 import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
+import "../contracts/LockUp.sol"
 
 // NOTE: Contract created with the help of --> https://wizard.openzeppelin.com/#governor
 
@@ -52,7 +53,13 @@ contract Governance is
 
     function becomeMember(addreess newMemberAddress) public external {
         require(_token.balanceOf(address) != 0, 'You Dont own any token, you need to buy some!');
-        require(_token.isStaked(address) == true, 'Not staked, need to own token AND stake it');
+        LockUp LU = LockUp(lockUpAddress);
+        bool lockUpCheck = LockUp.isLockedUp(newMemberAddress);
+        require(lockUpCheck == true, 'Not staked, need to own token AND stake it');
+        isMember[newMemberAddress] = true;
+    }
+
+    function memberInductOverride(address newMemberAddress) public onlyOwner{
         isMember[newMemberAddress] = true;
     }
 

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "hardhat/console.sol";
 import "./Token.sol";
 
-contract Exchange {
+contract LockUp {
 	address public feeAccount;
 	uint256 public feePercent;
 	address public blueGemAddress;
@@ -32,9 +32,7 @@ contract Exchange {
 		uint256 balance
 	);	
 
-	constructor(address _feeAccount, uint256 _feePercent){
-		feeAccount = _feeAccount;
-		feePercent = _feePercent;
+	constructor(){
 	}
 
 	function depositToken(address _token, uint256 _amount) public {
@@ -87,5 +85,9 @@ contract Exchange {
 		isLockedUp[unlocker] = false;
 		lockUpEnd[unlocker] = 0;
 	}
+
+	function isLockedUp(address locker) external view returns(bool) {
+		return isLockedUp[address];
+	} 
 
 }
