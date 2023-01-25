@@ -36,10 +36,10 @@ contract LockUp {
 	}
 
 	function depositToken(address _token, uint256 _amount) public {
-		//Transfer Tokens to exchange
-		require(Token(_token).transferFrom(msg.sender, address(this), _amount));
 		//Make Sure it's BlueGem Token Deposited
 		require(_token == blueGemAddress, "Can't deposit tokens that aren't BlueGem")
+		//Transfer Tokens to exchange
+		require(Token(_token).transferFrom(msg.sender, address(this), _amount));
 		//Update Balance
 		tokens[_token][msg.sender] = tokens[_token][msg.sender] + _amount;
 		//Emit Event
@@ -72,7 +72,8 @@ contract LockUp {
 	}
 
 	function startLockUpPeriod(address locker, uint256 lockUpPeriod) public external {
-		require(msg.sender == locker, "You can't spend or lockup someone else's tokens")
+		require(msg.sender == locker, "You can't spend or lockup someone else's tokens");
+		require(isLockedUp[locker] != true, "Already locked up, can't lock up again");
 		//lockup peroid is in weeks
 		uint256 lockUpWeeks = lockUpPeriod * 604800;
 		uint256 now = block.timestamp;
@@ -81,6 +82,7 @@ contract LockUp {
 	}
 
 	function endLockUpPeriod(address unlocker) public external {
+		require(msg.sender == unlocker, "Not your lockup, Please try again");
 		require(lockUpEnd[unlocker] <= block.timestamp, "Your lockup period is not over yet");
 		isLockedUp[unlocker] = false;
 		lockUpEnd[unlocker] = 0;

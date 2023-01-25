@@ -39,6 +39,10 @@ contract Governance is
         votingPeriod_ = _votingPeriod;
     }
 
+    function setLockUpAddress(address lockupaddress) public onlyOwner {
+        lockUpAddress = lockupaddress;
+    }
+
     function votingDelay() public view override returns (uint256) {
         return votingDelay_;
     }
